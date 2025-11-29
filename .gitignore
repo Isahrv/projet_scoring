@@ -1,0 +1,31 @@
+# --------------------------
+# Environnement virtuel
+# --------------------------
+uv/                  # Ignorer le dossier local
+# uv.lock sera suivi, donc ne pas l'ignorer
+
+# --------------------------
+# Fichiers compilés Python
+# --------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --------------------------
+# Fichiers système
+# --------------------------
+.DS_Store
+Thumbs.db
+
+# --------------------------
+# IDE / éditeurs
+# --------------------------
+.vscode/
+.idea/
+
+# --------------------------
+# Logs et fichiers temporaires
+# --------------------------
+*.log
+*.tmp
