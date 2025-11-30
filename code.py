@@ -10,18 +10,14 @@ import seaborn as sns
 import scipy.stats as ss
 
 #%%
+# --- Import des données ---
 df = pd.read_excel(Path("data") / "credit.xlsx")
 df.info()
 # 1000 lignes, 21 colonnes
-# 12 colonnes numériques (int64), 9 catégorielles (object)
+# 12 colonnes numériques (int64), 9 non numériques (object)
 
 #%%
-# Sélection des variables numériques et variables catégorielles
-var_num = df.select_dtypes(include=['int64', 'float64'])
-var_cat = df.select_dtypes(include=['object'])
-
-#%%
-# Aperçu des statistiques générales
+# --- Statistiques générales ---
 ProfileReport(df, title = "Rapport de données - Crédit")
 # Pas de valeurs manquantes
 # Garanties -> imbalanced
@@ -35,6 +31,14 @@ ProfileReport(df, title = "Rapport de données - Crédit")
 # Historique_credit, Objet_credit, Situation_familiale, Garanties, Biens, Autres_credits, Statut_domicile, Type_emploi, Telephone
 
 #%%
+# Sélection des variables numériques et variables catégorielles
+# Cle à exclure (car identification de l'observation)
+# Variables numériques : Age, Montant_credit, Duree_credit
+# Variables catégorielles : toutes les autres
+var_num = df[['Age', 'Montant_credit', 'Duree_credit']]
+var_cat = df.drop(columns=['Cle', 'Age', 'Montant_credit', 'Duree_credit'])
+
+#%%
 # --- Statistiques descriptives - Variables numériques ---
 print("Statistiques descriptives variables numériques :")
 var_num.describe()
@@ -45,13 +49,17 @@ for col in var_num.columns:
     sns.histplot(var_num[col], kde=True)
     plt.title(f"Distribution de {col}")
     plt.show()
+# Asymétrie pour Age, Montant_credit, et distribution irrégulière et asymétrique pour Duree_credit
 #%%
 # Boxplot
 for col in var_num.columns:
     plt.figure(figsize=(6,4))
-    sns.boxplot(x=df_num[col])
+    sns.boxplot(x=var_num[col])
     plt.title(f"Boxplot de {col}")
     plt.show()
+# 13 valeurs potentiellements atypiques dans Age
+# Beaucoup dans Montant_credit
+# 10 dans Duree_credit
 #%%
 # Corrélations
 plt.figure(figsize=(10,8))
@@ -59,7 +67,7 @@ corr_matrix = var_num.corr()
 sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f")
 plt.title("Matrice de corrélation - Variables numériques")
 plt.show()
-
+# Corrélation de 0.62 entre Montant_credit et Duree_credit
 #%%
 # --- Statistiques descriptives - Variables catégorielles ---
 print("Statistiques descriptives variables catégorielles :")
@@ -91,3 +99,32 @@ plt.figure(figsize=(10,8))
 sns.heatmap(cramers, annot=True, cmap="coolwarm", fmt=".2f")
 plt.title("Corrélation Cramer's V - Variables catégorielles")
 plt.show()
+# Corrélation de 0.55 entre Statut_domicile et Biens
+
+# %%
+# --- Exploration visuelle des données ---
+# Par rapport à la variable Cible (en enlevant les variables continues numériques)
+# Barplots croisés
+for col in df.drop(columns=['Cible', 'Cle', 'Montant_credit', 'Duree_credit', 'Age']).columns:
+    plt.figure(figsize=(6,4))
+    sns.countplot(x=col, hue='Cible', data=df)
+    plt.title(f"{col} vs Cible")
+    plt.show()
+# %%
+# Histogrammes empilés
+for col in df.drop(columns=['Cible', 'Cle', 'Montant_credit', 'Duree_credit', 'Age']).columns:
+    cross_tab = pd.crosstab(df[col], df['Cible'], normalize='index')
+    cross_tab.plot(kind='bar', stacked=True, figsize=(6,4))
+    plt.title(f"Proportion de Cible par {col}")
+    plt.ylabel("Proportion")
+    plt.show()
+
+# %%
+# --- Représentation variable Cible ---
+prop = df['Cible'].value_counts(normalize=True) * 100
+prop.plot(kind='bar', color=['skyblue','salmon'])
+plt.title("Proportion des classes de la variable Cible")
+plt.xlabel("Cible")
+plt.ylabel("Pourcentage (%)")
+plt.show()
+# %%
