@@ -1,21 +1,25 @@
 #%%
 import pandas as pd
 from pathlib import Path
-import openpyxl as oxl
 import numpy as np 
-import pkg_resources
 from ydata_profiling import ProfileReport
 import matplotlib.pyplot as plt
 import seaborn as sns
-import scipy.stats as ss
 
 #%%
 # --- Import data ---
 df = pd.read_excel(Path("data") / "credit.xlsx")
-# %%
 
-# Ton dataframe
-df = ...  # dataframe avec la colonne "Cible" (0=bon, 1=mauvais)
+# %%
+# Encodage de la variable cible : 1 -> 0, 2 -> 1 puis afficher
+df["Cible"] = df["Cible"].map({1: 0, 2: 1})
+df["Cible"].value_counts()
+
+# %%
+var_num = df[["Age", "Montant_credit", "Duree_credit"]]
+var_cat = df.drop(columns=["Cle", "Age", "Montant_credit", "Duree_credit"])
+
+# %%
 
 # ---------------------------
 # 1. Fine classing (exemple sur Age)
@@ -30,7 +34,7 @@ df["Age_bin_fine"] = pd.qcut(df["Age"], q=10, duplicates='drop')
 
 def woe_iv(data, feature, target):
 
-    tmp = data.groupby(feature)[target].agg(['count', 'sum'])
+    tmp = data.groupby(feature, observed=False)[target].agg(['count', 'sum'])
     tmp.columns = ['total', 'bad']
     tmp['good'] = tmp['total'] - tmp['bad']
 
@@ -76,3 +80,5 @@ woe_table_coarse, iv_coarse = woe_iv(df, "Age_bin_coarse", "Cible")
 
 print("IV coarse =", iv_coarse)
 print(woe_table_coarse)
+
+# La stabilité des classes, min 5 %
