@@ -99,14 +99,26 @@ X_train, X_test, y_train, y_test = train_test_split(
     random_state=42
 )
 
-# %%
-# Code automatisé
-# Paramètres
-n_bins = 10           # Nombre de bacs pour fine classing
-threshold = 0.15      # Seuil de fusion pour coarse classing
+# %% Code automatisé pour les variables numériques
+n_bins = 10       # Nombre de bacs pour fine classing
+threshold = 0.15  # Seuil de fusion pour coarse classing
 
-# Dictionnaire pour stocker les résultats
-woe_iv_results = {}
+def woe_iv(data, feature, target):
+    tmp = data.groupby(feature, observed=False)[target].agg(['count', 'sum'])
+    tmp.columns = ['total', 'bad']
+    tmp['good'] = tmp['total'] - tmp['bad']
+
+    total_good = tmp['good'].sum()
+    total_bad = tmp['bad'].sum()
+
+    tmp['pct_good'] = tmp['good'] / total_good
+    tmp['pct_bad'] = tmp['bad'] / total_bad
+
+    # Ajouter un petit epsilon pour éviter log(0)
+    tmp['WOE'] = np.log((tmp['pct_good'] + 1e-10) / (tmp['pct_bad'] + 1e-10))
+    tmp['IV'] = (tmp['pct_good'] - tmp['pct_bad']) * tmp['WOE']
+
+    return tmp, tmp['IV'].sum()
 
 # Boucle sur chaque variable numérique
 for var in var_num:
@@ -121,13 +133,23 @@ for var in var_num:
     print(f"IV fin ({var}) = {iv_fine:.4f}")
     print(woe_table_fine)
     
-    # 3. Coarse classing
-    woe_table_fine = woe_table_fine.sort_values("WOE")
-    woe_table_fine["WOE_shift"] = woe_table_fine["WOE"].shift()
-    woe_table_fine["merge_group"] = (abs(woe_table_fine["WOE"] - woe_table_fine["WOE_shift"]) > threshold).cumsum()
+    # 3. Coarse classing : fusion des bacs proches selon WOE
+    woe_table_fine = woe_table_fine.sort_values("WOE").reset_index()
+    merge_group = 0
+    groups = []
+    for pos, row in woe_table_fine.iterrows():
+        if pos == 0:
+            merge_group += 1
+        else:
+            prev_woe = woe_table_fine.loc[pos-1, "WOE"]
+            # Fusion si différence WOE > seuil
+            if abs(row["WOE"] - prev_woe) > threshold:
+                merge_group += 1
+        groups.append(merge_group)
+    woe_table_fine["merge_group"] = groups
     
-    # Mapping coarse bins
-    mapping = woe_table_fine["merge_group"].to_dict()
+    # Mapping coarse bins directement dans X_train
+    mapping = dict(zip(woe_table_fine[bin_fine_col], woe_table_fine["merge_group"]))
     bin_coarse_col = f"{var}_bin_coarse"
     X_train[bin_coarse_col] = X_train[bin_fine_col].map(mapping)
     
@@ -135,12 +157,9 @@ for var in var_num:
     woe_table_coarse, iv_coarse = woe_iv(X_train, bin_coarse_col, "Cible")
     print(f"IV coarse ({var}) = {iv_coarse:.4f}")
     print(woe_table_coarse)
-    
-    # Stocker les résultats
-    woe_iv_results[var] = {
-        "fine": (woe_table_fine, iv_fine),
-        "coarse": (woe_table_coarse, iv_coarse)
-    }
+
+#%%
+print(X_train.head())
 
 #%%
 # Même chose pour Obj_credit (variable catégorielle)

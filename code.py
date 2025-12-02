@@ -146,16 +146,16 @@ plt.show()
 
 # %%
 
-for col in df.select_dtypes('object').columns:
-    df[col] = df[col].astype('category')
+for col in df.select_dtypes("object").columns:
+    df[col] = df[col].astype("category")
 
 df.info()
 
-#%%
-quali = df.select_dtypes(include=['category']) # Je sélectionne mes variables quali
+# %%
+quali = df.select_dtypes(include=["category"])  # Je sélectionne mes variables quali
 
 # je met cible que mtn car j'en veux pas dans les quali
-df["Cible"] = df["Cible"].astype('category')
+df["Cible"] = df["Cible"].astype("category")
 # %%
 
 le = LabelEncoder()
@@ -166,3 +166,191 @@ for var in quali.columns:
 # %%
 print(df.head())
 # %%
+# Import des bibliothèques nécessaires
+import pandas as pd
+import numpy as np
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.metrics import roc_auc_score, roc_curve, confusion_matrix, f1_score
+from sklearn.ensemble import RandomForestClassifier
+from catboost import CatBoostClassifier
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+
+# ===========================================================================
+# 1.                                 LOGIT
+# ===========================================================================
+print("=== LOGIT ===")
+
+# Modèle Logit avec statsmodels
+X_train_sm = sm.add_constant(X_train)  # ajout de la constante
+logit_model = sm.Logit(y_train, X_train_sm)
+logit_result = logit_model.fit(disp=False)
+
+# Prédiction sur test
+X_test_sm = sm.add_constant(X_test)
+y_pred_prob_logit = logit_result.predict(X_test_sm)
+y_pred_logit = (y_pred_prob_logit >= 0.5).astype(int)
+
+# ----------------------------- Indicateurs -------------------------------
+# Indice de Gini
+gini_logit = 2 * roc_auc_score(y_test, y_pred_prob_logit) - 1
+print("Indice de Gini:", gini_logit)
+
+# AUC
+auc_logit = roc_auc_score(y_test, y_pred_prob_logit)
+print("AUC:", auc_logit)
+
+# Courbe ROC
+fpr, tpr, thresholds = roc_curve(y_test, y_pred_prob_logit)
+plt.figure()
+plt.plot(fpr, tpr, label=f"Logit (AUC = {auc_logit:.2f})")
+plt.plot([0, 1], [0, 1], "k--")
+plt.xlabel("FPR")
+plt.ylabel("TPR")
+plt.title("ROC Logit")
+plt.legend()
+plt.show()
+
+# Matrice de confusion
+conf_matrix_logit = confusion_matrix(y_test, y_pred_logit)
+print("Matrice de confusion:\n", conf_matrix_logit)
+
+# F-score
+fscore_logit = f1_score(y_test, y_pred_logit)
+print("F-score:", fscore_logit)
+
+# F-statistique (likelihood ratio test)
+fstat_logit = logit_result.llr
+print("F-statistique:", fstat_logit)
+
+# ===========================================================================
+# 2.                                 PROBIT
+# ===========================================================================
+print("\n=== PROBIT ===")
+
+probit_model = sm.Probit(y_train, X_train_sm)
+probit_result = probit_model.fit(disp=False)
+
+y_pred_prob_probit = probit_result.predict(X_test_sm)
+y_pred_probit = (y_pred_prob_probit >= 0.5).astype(int)
+
+# ----------------------------- Indicateurs -------------------------------
+
+# Indice de Gini
+gini_probit = 2 * roc_auc_score(y_test, y_pred_prob_probit) - 1
+print("Indice de Gini:", gini_probit)
+
+# AUC
+auc_probit = roc_auc_score(y_test, y_pred_prob_probit)
+print("AUC:", auc_probit)
+
+# Courbe ROC
+fpr, tpr, thresholds = roc_curve(y_test, y_pred_prob_probit)
+plt.figure()
+plt.plot(fpr, tpr, label=f"Probit (AUC = {auc_probit:.2f})")
+plt.plot([0, 1], [0, 1], "k--")
+plt.xlabel("FPR")
+plt.ylabel("TPR")
+plt.title("ROC Probit")
+plt.legend()
+plt.show()
+
+# Matrice de confusion
+conf_matrix_probit = confusion_matrix(y_test, y_pred_probit)
+print("Matrice de confusion:\n", conf_matrix_probit)
+
+# F-score
+fscore_probit = f1_score(y_test, y_pred_probit)
+print("F-score:", fscore_probit)
+
+# F-statistique
+fstat_probit = probit_result.llr
+print("F-statistique:", fstat_probit)
+
+# ===========================================================================
+# 3.                                 CATBOOST
+# ===========================================================================
+print("\n=== CATBOOST ===")
+
+cat_model = CatBoostClassifier(verbose=0, random_state=42)
+cat_model.fit(X_train, y_train)
+
+y_pred_prob_cat = cat_model.predict_proba(X_test)[:, 1]
+y_pred_cat = (y_pred_prob_cat >= 0.5).astype(int)
+
+# ----------------------------- Indicateurs -------------------------------
+
+# Indice de Gini
+gini_cat = 2 * roc_auc_score(y_test, y_pred_prob_cat) - 1
+print("Indice de Gini:", gini_cat)
+
+# AUC
+auc_cat = roc_auc_score(y_test, y_pred_prob_cat)
+print("AUC:", auc_cat)
+
+# Courbe ROC
+fpr, tpr, thresholds = roc_curve(y_test, y_pred_prob_cat)
+plt.figure()
+plt.plot(fpr, tpr, label=f"CatBoost (AUC = {auc_cat:.2f})")
+plt.plot([0, 1], [0, 1], "k--")
+plt.xlabel("FPR")
+plt.ylabel("TPR")
+plt.title("ROC CatBoost")
+plt.legend()
+plt.show()
+
+# Matrice de confusion
+conf_matrix_cat = confusion_matrix(y_test, y_pred_cat)
+print("Matrice de confusion:\n", conf_matrix_cat)
+
+# F-score
+fscore_cat = f1_score(y_test, y_pred_cat)
+print("F-score:", fscore_cat)
+
+# Pas de F-statistique classique pour CatBoost, on affiche None
+print("F-statistique: None (non applicable pour CatBoost)")
+
+# ===========================================================================
+# 4.                            FORÊT ALÉATOIRE
+# ===========================================================================
+print("\n=== FORÊT ALÉATOIRE ===")
+
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+rf_model.fit(X_train, y_train)
+
+y_pred_prob_rf = rf_model.predict_proba(X_test)[:, 1]
+y_pred_rf = (y_pred_prob_rf >= 0.5).astype(int)
+
+# ----------------------------- Indicateurs -------------------------------
+
+# Indice de Gini
+gini_rf = 2 * roc_auc_score(y_test, y_pred_prob_rf) - 1
+print("Indice de Gini:", gini_rf)
+
+# AUC
+auc_rf = roc_auc_score(y_test, y_pred_prob_rf)
+print("AUC:", auc_rf)
+
+# Courbe ROC
+fpr, tpr, thresholds = roc_curve(y_test, y_pred_prob_rf)
+plt.figure()
+plt.plot(fpr, tpr, label=f"Random Forest (AUC = {auc_rf:.2f})")
+plt.plot([0, 1], [0, 1], "k--")
+plt.xlabel("FPR")
+plt.ylabel("TPR")
+plt.title("ROC Random Forest")
+plt.legend()
+plt.show()
+
+# Matrice de confusion
+conf_matrix_rf = confusion_matrix(y_test, y_pred_rf)
+print("Matrice de confusion:\n", conf_matrix_rf)
+
+# F-score
+fscore_rf = f1_score(y_test, y_pred_rf)
+print("F-score:", fscore_rf)
+
+# Pas de F-statistique classique pour Random Forest
+print("F-statistique: None (non applicable pour Random Forest)")
