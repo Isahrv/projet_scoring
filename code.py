@@ -166,6 +166,17 @@ for var in quali.columns:
 # %%
 print(df.head())
 # %%
+# Import des bibliothèques nécessaires
+import pandas as pd
+import numpy as np
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.metrics import roc_auc_score, roc_curve, confusion_matrix, f1_score
+from sklearn.ensemble import RandomForestClassifier
+from catboost import CatBoostClassifier
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
 
 # ===========================================================================
 # 1.                                 LOGIT
