@@ -159,7 +159,15 @@ for var in var_num:
     print(woe_table_coarse)
 
 #%%
-print(X_train.head())
+
+# pour voir les valeurs IV
+
+var_list = ["Age", "Montant", "Duree"]
+
+for var in var_list:
+    bin_fine_col = f"{var}_bin_fine"
+    print(f"IV final retenu pour {var} = {iv_coarse:.4f}")
+
 
 #%%
 # Même chose pour Obj_credit (variable catégorielle)
