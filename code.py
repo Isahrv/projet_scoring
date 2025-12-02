@@ -8,6 +8,8 @@ from ydata_profiling import ProfileReport
 import matplotlib.pyplot as plt
 import seaborn as sns
 import scipy.stats as ss
+from sklearn.preprocessing import LabelEncoder
+
 
 # %%
 # --- Import des données ---
@@ -141,4 +143,26 @@ plt.title("Proportion des classes de la variable Cible")
 plt.xlabel("Cible")
 plt.ylabel("Pourcentage (%)")
 plt.show()
+
+# %%
+
+for col in df.select_dtypes('object').columns:
+    df[col] = df[col].astype('category')
+
+df.info()
+
+#%%
+quali = df.select_dtypes(include=['category']) # Je sélectionne mes variables quali
+
+# je met cible que mtn car j'en veux pas dans les quali
+df["Cible"] = df["Cible"].astype('category')
+# %%
+
+le = LabelEncoder()
+
+for var in quali.columns:
+    df[var] = le.fit_transform(df[var])
+
+# %%
+print(df.head())
 # %%
