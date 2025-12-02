@@ -5,6 +5,8 @@ import numpy as np
 from ydata_profiling import ProfileReport
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.model_selection import train_test_split
+
 
 #%%
 # --- Import data ---
@@ -19,7 +21,13 @@ df["Cible"].value_counts()
 var_num = df[["Age", "Montant_credit", "Duree_credit"]]
 var_cat = df.drop(columns=["Cle", "Age", "Montant_credit", "Duree_credit"])
 
+
+# Obj_credit plus de 5 catégories (9), on fais Woe UNIQUEMENT sur cette variables cat
+# Pas les autres
+
 # %%
+
+# test sur la variable Age
 
 # ---------------------------
 # 1. Fine classing (exemple sur Age)
@@ -82,3 +90,100 @@ print("IV coarse =", iv_coarse)
 print(woe_table_coarse)
 
 # La stabilité des classes, min 5 %
+
+# %%
+X_train, X_test, y_train, y_test = train_test_split(
+    df.drop(columns=['Cle']),
+    df['Cle'],
+    test_size=0.2,
+    random_state=42
+)
+
+# %%
+# Code automatisé
+# Paramètres
+n_bins = 10           # Nombre de bacs pour fine classing
+threshold = 0.15      # Seuil de fusion pour coarse classing
+
+# Dictionnaire pour stocker les résultats
+woe_iv_results = {}
+
+# Boucle sur chaque variable numérique
+for var in var_num:
+    print(f"\n--- Traitement de {var} ---")
+    
+    # 1. Fine classing
+    bin_fine_col = f"{var}_bin_fine"
+    X_train[bin_fine_col] = pd.qcut(X_train[var], q=n_bins, duplicates='drop')
+    
+    # 2. Calcul WOE/IV sur bacs fins
+    woe_table_fine, iv_fine = woe_iv(X_train, bin_fine_col, "Cible")
+    print(f"IV fin ({var}) = {iv_fine:.4f}")
+    print(woe_table_fine)
+    
+    # 3. Coarse classing
+    woe_table_fine = woe_table_fine.sort_values("WOE")
+    woe_table_fine["WOE_shift"] = woe_table_fine["WOE"].shift()
+    woe_table_fine["merge_group"] = (abs(woe_table_fine["WOE"] - woe_table_fine["WOE_shift"]) > threshold).cumsum()
+    
+    # Mapping coarse bins
+    mapping = woe_table_fine["merge_group"].to_dict()
+    bin_coarse_col = f"{var}_bin_coarse"
+    X_train[bin_coarse_col] = X_train[bin_fine_col].map(mapping)
+    
+    # 4. WOE/IV sur bacs grossiers
+    woe_table_coarse, iv_coarse = woe_iv(X_train, bin_coarse_col, "Cible")
+    print(f"IV coarse ({var}) = {iv_coarse:.4f}")
+    print(woe_table_coarse)
+    
+    # Stocker les résultats
+    woe_iv_results[var] = {
+        "fine": (woe_table_fine, iv_fine),
+        "coarse": (woe_table_coarse, iv_coarse)
+    }
+
+#%%
+# Même chose pour Obj_credit (variable catégorielle)
+
+cat_var = "Objet_credit"
+min_pct = 0.05  # Seuil minimal de représentation pour good et bad
+
+# 1. Fine classing : chaque catégorie = bac fin
+bin_fine_col = f"{cat_var}_bin_fine"
+X_train[bin_fine_col] = X_train[cat_var]  # chaque catégorie est déjà un bac fin
+
+# 2. Calcul WOE/IV sur les bacs fins
+woe_table_fine, iv_fine = woe_iv(X_train, bin_fine_col, "Cible")
+print(f"IV fin ({cat_var}) = {iv_fine:.4f}")
+print(woe_table_fine)
+
+# 3. Coarse classing : fusion selon WOE + seuil minimal
+woe_table_fine = woe_table_fine.sort_values("WOE")
+woe_table_fine["WOE_shift"] = woe_table_fine["WOE"].shift()
+
+# Initialisation du groupe
+merge_group = 0
+groups = []
+
+for i, row in woe_table_fine.iterrows():
+    # Vérifier si la différence de WOE dépasse le seuil OU si la taille relative est suffisante
+    if (i == woe_table_fine.index[0]) or \
+       (abs(row["WOE"] - woe_table_fine.loc[woe_table_fine.index[i-1], "WOE"]) > 0.15) or \
+       (row["pct_good"] < min_pct or row["pct_bad"] < min_pct):
+        merge_group += 1
+    groups.append(merge_group)
+
+woe_table_fine["merge_group"] = groups
+
+# Mapping coarse bins
+mapping = woe_table_fine["merge_group"].to_dict()
+bin_coarse_col = f"{cat_var}_bin_coarse"
+X_train[bin_coarse_col] = X_train[bin_fine_col].map(mapping)
+
+# 4. WOE/IV sur les bacs grossiers
+woe_table_coarse, iv_coarse = woe_iv(X_train, bin_coarse_col, "Cible")
+print(f"IV coarse ({cat_var}) = {iv_coarse:.4f}")
+print(woe_table_coarse)
+
+
+# %%
