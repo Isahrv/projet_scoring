@@ -1,3 +1,14 @@
+# Projet dans le cadre du cours Risque de Crédit et Méthodes de Scoring
+Par Arthur Ernould de la Provoté, Florian Crochet, Isaline Hervé
+M2 ECAP - Année 2025-2026
+
+# Plan de travail
+1. Analyse exploratoire et statistiques descriptives
+2. Fine et coarse classing
+3. Modélisation - prédictions de la variable Cible
+4. Construction d'un score et définitions de seuils
+
+# Mettre en place et synchroniser l'environnement
 Mettre git bash dans le terminal
 Aller dans le dossier où il y a uv.lock et pyproject.toml
 
